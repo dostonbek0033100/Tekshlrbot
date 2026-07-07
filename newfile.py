@@ -31,11 +31,6 @@ async def check_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     user_id=user.id
                 )
 
-                await context.bot.send_message(
-                    update.effective_chat.id,
-                    f"🚫 @{username} o'chirildi."
-                )
-
             except Exception as e:
                 print(e)
 
