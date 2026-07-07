@@ -1,3 +1,4 @@
+import os
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -7,13 +8,14 @@ from telegram.ext import (
     filters
 )
 
-TOKEN = "8766627088:AAHJAxw6qM9jy_O2T1pudmobV1dG4CFD398"
+TOKEN = os.getenv("8766627088:AAHJAxw6qM9jy_O2T1pudmobV1dG4CFD398")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🤖 Moderator bot ishlayapti!\n\n"
-        "🛡 @user_ bilan boshlanadigan akkauntlar avtomatik chiqariladi."
+        "✅ @user_ akkauntlar avtomatik chiqariladi.\n"
+        "🛡 Guruh himoyasi faol."
     )
 
 
@@ -22,27 +24,28 @@ async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
 
-    # Kirdi xabarini o'chirish
+    # Kirish xabarini o'chirish
     try:
         await update.message.delete()
     except Exception as e:
         print("Delete:", e)
+
 
     for user in update.message.new_chat_members:
 
         username = (user.username or "").lower()
 
         print(
-            "Yangi odam:",
+            "Yangi a'zo:",
             user.id,
             username,
             user.full_name
         )
 
+        # @user_ bilan boshlansa
         if username.startswith("user_"):
 
             try:
-                # Ban qilish
                 await context.bot.ban_chat_member(
                     chat_id=update.effective_chat.id,
                     user_id=user.id
@@ -51,7 +54,16 @@ async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print("BAN:", username)
 
             except Exception as e:
-                print("BAN xato:", e)
+                print("Ban xato:", e)
+
+
+
+async def left_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    try:
+        await update.message.delete()
+    except:
+        pass
 
 
 
@@ -71,7 +83,15 @@ app.add_handler(
 )
 
 
-print("✅ Bot ishga tushdi")
+app.add_handler(
+    MessageHandler(
+        filters.StatusUpdate.LEFT_CHAT_MEMBER,
+        left_member
+    )
+)
+
+
+print("✅ Railway bot ishga tushdi")
 
 app.run_polling(
     allowed_updates=Update.ALL_TYPES
