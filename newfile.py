@@ -1,4 +1,3 @@
-import os
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -8,7 +7,7 @@ from telegram.ext import (
     filters
 )
 
-TOKEN = os.getenv("TOKEN")
+TOKEN = "8766627088:AAHJAxw6qM9jy_O2T1pudmobV1dG4CFD398"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -27,22 +26,16 @@ async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Kirish xabarini o'chirish
     try:
         await update.message.delete()
-    except Exception as e:
-        print("Delete:", e)
+    except:
+        pass
 
 
     for user in update.message.new_chat_members:
 
         username = (user.username or "").lower()
 
-        print(
-            "Yangi a'zo:",
-            user.id,
-            username,
-            user.full_name
-        )
+        print("Yangi a'zo:", username)
 
-        # @user_ bilan boshlansa
         if username.startswith("user_"):
 
             try:
@@ -54,7 +47,7 @@ async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 print("BAN:", username)
 
             except Exception as e:
-                print("Ban xato:", e)
+                print("Xato:", e)
 
 
 
@@ -91,7 +84,7 @@ app.add_handler(
 )
 
 
-print("✅ Railway bot ishga tushdi")
+print("✅ Bot ishga tushdi")
 
 app.run_polling(
     allowed_updates=Update.ALL_TYPES
