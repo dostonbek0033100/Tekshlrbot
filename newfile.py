@@ -2,9 +2,8 @@ from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
+    ChatMemberHandler,
+    ContextTypes
 )
 
 TOKEN = "8766627088:AAHJAxw6qM9jy_O2T1pudmobV1dG4CFD398"
@@ -12,79 +11,53 @@ TOKEN = "8766627088:AAHJAxw6qM9jy_O2T1pudmobV1dG4CFD398"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🤖 Moderator bot ishlayapti!\n\n"
-        "✅ @user_ akkauntlar avtomatik chiqariladi.\n"
-        "🛡 Guruh himoyasi faol."
+        "🤖 Moderator bot ishlayapti!\n"
+        "🛡 @user_ akkauntlar bloklanadi."
     )
 
 
-async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def member_check(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if not update.message:
-        return
+    old = update.chat_member.old_chat_member
+    new = update.chat_member.new_chat_member
 
-    # Kirish xabarini o'chirish
-    try:
-        await update.message.delete()
-    except:
-        pass
+    # Faqat yangi kirganlarni tekshirish
+    if old.status in ["left", "kicked"] and new.status == "member":
 
-
-    for user in update.message.new_chat_members:
-
+        user = new.user
         username = (user.username or "").lower()
 
-        print("Yangi a'zo:", username)
+        print("KIRDI:", username)
 
         if username.startswith("user_"):
 
             try:
                 await context.bot.ban_chat_member(
-                    chat_id=update.effective_chat.id,
-                    user_id=user.id
+                    update.effective_chat.id,
+                    user.id
                 )
 
                 print("BAN:", username)
 
             except Exception as e:
-                print("Xato:", e)
-
-
-
-async def left_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    try:
-        await update.message.delete()
-    except:
-        pass
-
+                print(e)
 
 
 app = Application.builder().token(TOKEN).build()
-
 
 app.add_handler(
     CommandHandler("start", start)
 )
 
-
 app.add_handler(
-    MessageHandler(
-        filters.StatusUpdate.NEW_CHAT_MEMBERS,
-        new_member
+    ChatMemberHandler(
+        member_check,
+        ChatMemberHandler.CHAT_MEMBER
     )
 )
 
 
-app.add_handler(
-    MessageHandler(
-        filters.StatusUpdate.LEFT_CHAT_MEMBER,
-        left_member
-    )
-)
-
-
-print("✅ Bot ishga tushdi")
+print("Bot ishga tushdi")
 
 app.run_polling(
     allowed_updates=Update.ALL_TYPES
