@@ -5,40 +5,45 @@ from telegram.ext import (
     CommandHandler,
     MessageHandler,
     ContextTypes,
-    filters,
+    filters
 )
 
-TOKEN = "8766627088:AAHJAxw6qM9jy_O2T1pudmobV1dG4CFD398"
+TOKEN = "YANGI_BOT_TOKENINGIZ"
+
+# Ruxsat berilgan admin ID lar
+WHITELIST = [
+    # Masalan: 123456789
+]
 
 # Spam so'zlar
 BAD_WORDS = [
     "18", "18+", "porn", "sex", "xxx",
     "onlyfans", "adult", "escort",
-    "nude", "hot", "video", "girls"
+    "nude", "hot"
 ]
 
-# Reklama havolalari
+# Reklama linklari
 BAD_LINKS = [
     "http://",
     "https://",
     "t.me/",
     "telegram.me/",
     ".com",
-    ".net",
     ".xyz",
-    ".vip",
     ".top",
-    ".click"
+    ".vip"
 ]
 
-# Ban qilinmaydigan admin ID lar
-WHITELIST = [
-    # 123456789,
-]
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "✅ Moderator bot ishlayapti."
+        "🤖 Assalomu alaykum!\n\n"
+        "✅ Moderator Bot ishlayapti.\n"
+        "🛡 Guruh himoyasi yoqilgan.\n\n"
+        "• @user_ akkauntlar tekshiriladi.\n"
+        "• Spam xabarlar o'chiriladi.\n"
+        "• Reklama va 18+ kontent bloklanadi.\n\n"
+        "🚀 Bot faol!"
     )
 
 
@@ -47,15 +52,15 @@ def is_spam(username, fullname, text=""):
     fullname = (fullname or "").lower()
     text = (text or "").lower()
 
-    # @user_ bilan boshlansa
+    # user_ bilan boshlansa
     if username.startswith("user_"):
         return True
 
-    # user_xxxxxxxx ko'rinishi
+    # user_xxxxx ko'rinishida bo'lsa
     if re.fullmatch(r"user_[a-z0-9]{8,12}", username):
         return True
 
-    # Ism yoki username
+    # So'z tekshirish
     for word in BAD_WORDS:
         if word in username:
             return True
@@ -64,13 +69,14 @@ def is_spam(username, fullname, text=""):
         if word in text:
             return True
 
-    # Link
+    # Link tekshirish
     for link in BAD_LINKS:
         if link in text:
             return True
 
     return False
 async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if not update.message:
         return
 
@@ -82,7 +88,7 @@ async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for user in update.message.new_chat_members:
 
-        # Adminlarni o'tkazib yuborish
+        # Oq ro'yxatdagilar o'tadi
         if user.id in WHITELIST:
             continue
 
@@ -95,15 +101,17 @@ async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
                 await context.bot.send_message(
-                    update.effective_chat.id,
-                    f"🚫 @{user.username or user.first_name} avtomatik ban qilindi."
+                    chat_id=update.effective_chat.id,
+                    text=f"🚫 {user.first_name} spam sababli ban qilindi."
                 )
 
             except Exception as e:
-                print(e)
+                print("Ban xatosi:", e)
+
 
 
 async def left_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if not update.message:
         return
 
@@ -114,7 +122,9 @@ async def left_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 
+
 async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if not update.message:
         return
 
@@ -126,31 +136,43 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text or ""
 
-    if is_spam(user.username, user.full_name, text):
+    if is_spam(
+        user.username,
+        user.full_name,
+        text
+    ):
 
         try:
             await update.message.delete()
-        except:
-            pass
+        except Exception as e:
+            print("O'chirish xatosi:", e)
 
         try:
             await context.bot.ban_chat_member(
                 chat_id=update.effective_chat.id,
                 user_id=user.id
             )
+
         except Exception as e:
-            print(e)
-        async def check_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            print("Ban xatosi:", e)
+async def check_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     if not update.message:
         return
 
     user = update.effective_user
-    caption = update.message.caption or ""
 
     if user.id in WHITELIST:
         return
 
-    if is_spam(user.username, user.full_name, caption):
+    caption = update.message.caption or ""
+
+    if is_spam(
+        user.username,
+        user.full_name,
+        caption
+    ):
+
         try:
             await update.message.delete()
         except:
@@ -161,35 +183,59 @@ async def check_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 chat_id=update.effective_chat.id,
                 user_id=user.id
             )
-        except Exception as e:
-            print(e)
+        except:
+            pass
+
 
 
 app = Application.builder().token(TOKEN).build()
 
-# /start
-app.add_handler(CommandHandler("start", start))
 
-# Guruhga qo'shilganlar
+# /start
 app.add_handler(
-    MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, new_member)
+    CommandHandler("start", start)
 )
+
+
+# Guruhga yangi kirganlar
+app.add_handler(
+    MessageHandler(
+        filters.StatusUpdate.NEW_CHAT_MEMBERS,
+        new_member
+    )
+)
+
 
 # Guruhdan chiqqanlar
 app.add_handler(
-    MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left_member)
+    MessageHandler(
+        filters.StatusUpdate.LEFT_CHAT_MEMBER,
+        left_member
+    )
 )
 
-# Matnli xabarlar
+
+# Oddiy matn xabarlar
 app.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, check_message)
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        check_message
+    )
 )
 
-# Rasm + caption
+
+# Rasm va caption tekshirish
 app.add_handler(
-    MessageHandler(filters.PHOTO, check_photo)
+    MessageHandler(
+        filters.PHOTO,
+        check_photo
+    )
 )
+
 
 print("✅ Moderator bot ishga tushdi...")
 
-app.run_polling(allowed_updates=Update.ALL_TYPES)
+
+app.run_polling(
+    allowed_updates=Update.ALL_TYPES
+)
