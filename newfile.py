@@ -36,7 +36,7 @@ SPAM_WORDS = [
     "http://", "https://", "bit.ly", "t.me/",
     "promo", "discount", "earn$", "make money",
     "double your", "guaranteed", "no risk",
-    "xxx", "adult", "18+",
+    "xxx", "adult", "18+", "profilimda video bor",
 ]
 
 BANNED_KEYWORDS = [
@@ -108,6 +108,31 @@ def start_health_server():
 
 
 # ============================================================
+# ADMINLARGA BILDIRIM (yangilangan format)
+# ============================================================
+async def notify_admins(context: ContextTypes.DEFAULT_TYPE, chat_title: str, user, reason: str):
+    """Barcha adminlarga ban haqida xabar yuboradi."""
+    username_text = f"@{user.username}" if user.username else "username yo'q"
+    text = (
+        f"🚫 *{chat_title}* dan {username_text} banlandi\n"
+        f"📌 Sabab: {reason}\n"
+        f"👤 Ism: {user.first_name}\n"
+        f"🆔 ID: `{user.id}`"
+    )
+
+    for admin_id in ADMIN_IDS:
+        try:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=text,
+                parse_mode="Markdown"
+            )
+            print(f"📩 Admin {admin_id} ga bildirim yuborildi")
+        except Exception as e:
+            print(f"❌ Admin {admin_id} ga xabar yuborilmadi: {e}")
+
+
+# ============================================================
 # /start
 # ============================================================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -117,10 +142,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🤖 ModerBot ishlayapti!\n\n"
         "🛡 @user_... username'lar bloklanadi.\n"
         "🛡 Ismi admin + raqam bo'lgan akkauntlar bloklanadi.\n"
-        "🛡 Spam so'zlar yozgan foydalanuvchilar bloklanadi.\n\n"
-        "📋 Spam so'zlar ro'yxati: "
-        f"{', '.join(SPAM_WORDS[:10])}... "
-        f"va jami {len(SPAM_WORDS)} ta so'z."
+        "🛡 Spam so'zlar yozgan foydalanuvchilar bloklanadi."
     )
 
 
@@ -159,37 +181,49 @@ async def check_spam_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_violation(update: Update, context: ContextTypes.DEFAULT_TYPE, reason: str):
     user = update.message.from_user
     chat = update.message.chat
+    message_id = update.message.message_id
     username_text = f"@{user.username}" if user.username else "username yo'q"
 
     if user.id in ADMIN_IDS:
         print(f"⚠️ Admin {user.first_name} tekshirildi: {reason}")
         return
 
+    # 1. Xabarni O'CHIRISH
     try:
-        await context.bot.kick_chat_member(
+        await context.bot.delete_message(
             chat_id=chat.id,
-            user_id=user.id
+            message_id=message_id
         )
-        await context.bot.unban_chat_member(
+        print(f"🗑 Xabar o'chirildi (ID: {message_id})")
+    except Exception as e:
+        print(f"❌ Xabar o'chirishda xatolik: {e}")
+
+    # 2. Foydalanuvchini BAN qilish
+    try:
+        await context.bot.ban_chat_member(
             chat_id=chat.id,
             user_id=user.id
         )
         print(f"====================================")
-        print(f"⚠️ QAYTARILDI (kick)")
+        print(f"🚫 BAN QILINDI (doimiy)")
         print(f"👤 Ism: {user.first_name}")
         print(f"🔗 Username: {username_text}")
         print(f"🆔 ID: {user.id}")
         print(f"📌 Sabab: {reason}")
         print(f"====================================")
     except Exception as e:
-        print(f"❌ Qaytarishda xatolik: {e}")
+        print(f"❌ Ban qilishda xatolik: {e}")
 
+    # 3. ADMINLARGA BILDIRIM (yangi format)
+    await notify_admins(context, chat.title, user, reason)
+
+    # 4. Foydalanuvchiga xabar berish
     try:
         await context.bot.send_message(
             chat_id=user.id,
-            text=f"⛔ Siz {chat.title} guruhidan haydab qo'yildingiz.\n"
+            text=f"⛔ Siz {chat.title} guruhidan ban qilindingiz.\n"
                  f"📌 Sabab: {reason}\n"
-                 f"Botdan spamxabarlar yozmang!"
+                 f"❓ Nega ban qilindiğini bilib olish uchun admin bilan murojat qiling."
         )
     except Exception:
         pass
@@ -234,55 +268,6 @@ async def check_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
-# ADMIN KOMANDALARI
-# ============================================================
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.from_user.id not in ADMIN_IDS:
-        return
-    await update.message.reply_text(
-        f"📊 **ModerBot Statistika:**\n\n"
-        f"🔍 Spam so'zlar: {len(SPAM_WORDS)} ta\n"
-        f"🚫 Manxur so'zlar: {len(BANNED_KEYWORDS)} ta\n"
-        f"👥 Adminlar: {len(ADMIN_IDS)} ta"
-    )
-
-
-async def add_spam_word(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.from_user.id not in ADMIN_IDS:
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Iltimos, so'z kiriting: /addspam casino")
-        return
-    word = context.args[0].lower().strip()
-    if word in SPAM_WORDS:
-        await update.message.reply_text(f"⚠️ \"{word}\" allaqachon ro'yxatda.")
-    else:
-        SPAM_WORDS.append(word)
-        await update.message.reply_text(f"✅ \"{word}\" spam ro'yxatiga qo'shildi!")
-
-
-async def remove_spam_word(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.from_user.id not in ADMIN_IDS:
-        return
-    if not context.args:
-        await update.message.reply_text("❌ Iltimos, so'z kiriting: /delspam casino")
-        return
-    word = context.args[0].lower().strip()
-    if word in SPAM_WORDS:
-        SPAM_WORDS.remove(word)
-        await update.message.reply_text(f"✅ \"{word}\" spam ro'yxatidan o'chirildi.")
-    else:
-        await update.message.reply_text(f"⚠️ \"{word}\" ro'yxatda topilmadi.")
-
-
-async def list_spam_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.from_user.id not in ADMIN_IDS:
-        return
-    words = "\n".join([f"  {i+1}. {w}" for i, w in enumerate(SPAM_WORDS)])
-    await update.message.reply_text(f"📋 **Jami {len(SPAM_WORDS)} ta spam so'z:**\n{words}")
-
-
-# ============================================================
 # MAIN
 # ============================================================
 def main():
@@ -296,10 +281,6 @@ def main():
     application = Application.builder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("stats", stats_command))
-    application.add_handler(CommandHandler("addspam", add_spam_word))
-    application.add_handler(CommandHandler("delspam", remove_spam_word))
-    application.add_handler(CommandHandler("spamlist", list_spam_words))
 
     application.add_handler(
         ChatMemberHandler(check_new_member, ChatMemberHandler.CHAT_MEMBER)
