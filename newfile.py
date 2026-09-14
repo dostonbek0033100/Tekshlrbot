@@ -28,14 +28,7 @@ ADMIN_IDS = {1072547777}
 # SPAM SO'ZLAR RO'YXATI
 # ============================================================
 SPAM_WORDS = [
-    "casino", "gambling", "bet", "pkr", "poker",
-    "xy", "freelance", "work from home", "earn money",
-    "click here", "free giveaway", "crypto airdrop",
-    "join now", "limited time", "act fast",
-    "💰", "📈", "🎰", "🏦", "💸",
-    "http://", "https://", "bit.ly", "t.me/",
-    "promo", "discount", "earn$", "make money",
-    "double your", "guaranteed", "no risk",
+    
     "xxx", "adult", "18+", "profilimda video bor",
 ]
 
