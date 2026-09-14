@@ -14,56 +14,31 @@ from telegram.ext import (
 )
 from telegram.helpers import escape_markdown
 
-# ============================================================
-# CONFIG
-# ============================================================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable topilmadi!")
 
-# ============================================================
-# ADMINLAR (Telegram ID)
-# ============================================================
 ADMIN_IDS = {1072547777}
 
-# ============================================================
-# SPAM SO'ZLAR RO'YXATI
-# ============================================================
 SPAM_WORDS = [
-    "casino", "gambling", "bet", "pkr", "poker",
-    "xy", "freelance", "work from home", "earn money",
-    "click here", "free giveaway", "crypto airdrop",
-    "join now", "limited time", "act fast",
-    "💰", "📈", "🎰", "🏦", "💸",
-    "http://", "https://", "bit.ly", "t.me/",
-    "promo", "discount", "earn$", "make money",
-    "double your", "guaranteed", "no risk",
-    "xxx", "adult", "18+",
+    "xxx", "adult", "18+", "profilimda video bor",
 ]
 
-# ============================================================
-# SPAM TEKSHIRISH
-# ============================================================
 def contains_spam(text):
     """Soxta baroni oldini olish uchun so'z chegarasi bilan tekshiradi."""
     text_lower = text.lower()
     found = []
     for word in SPAM_WORDS:
         w = word.lower()
-        # faqat oddiy harflar/mos bo'lsa → so'z chegarasi bilan qidiramiz
         if re.fullmatch(r"[a-z0-9 ]+", w):
             pattern = r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])"
             if re.search(pattern, text_lower):
                 found.append(word)
         else:
-            # emoji, "http://", "18+", "earn$" kabilarni to'g'ridan-to'g'ri
             if w in text_lower:
                 found.append(word)
     return found
 
-# ============================================================
-# BAN QOIDALARI
-# ============================================================
 def should_ban(user):
     """Ism/username'da 'admin' bor bo'lsa yoki user_ bilan boshlansa — ban."""
     username = (user.username or "").lower().strip()
@@ -77,9 +52,6 @@ def should_ban(user):
         return True, "ismda 'admin' bor: " + (full_name or "belgilanmagan")
     return False, ""
 
-# ============================================================
-# RENDER HEALTH SERVER
-# ============================================================
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("/", "/health"):
@@ -100,9 +72,6 @@ def start_health_server():
     print(f"Health server {port}-portda ishga tushdi")
     server.serve_forever()
 
-# ============================================================
-# ADMINLARGA BILDIRIM
-# ============================================================
 async def notify_admins(context, chat_title, user, reason):
     """Barcha adminlarga ban haqida xabar yuboradi."""
     if not user:
@@ -131,9 +100,6 @@ async def notify_admins(context, chat_title, user, reason):
         except Exception as e:
             print(f"❌ Admin {admin_id} ga xabar yuborilmadi: {e}")
 
-# ============================================================
-# /start
-# ============================================================
 async def start_command(update, context):
     if not update.message:
         return
@@ -144,9 +110,6 @@ async def start_command(update, context):
         "🛡 Spam so'zlar yozgan foydalanuvchilar bloklanadi."
     )
 
-# ============================================================
-# SPAM XABARLARNI TEKSHIRISH
-# ============================================================
 async def check_spam_message(update, context):
     message = update.message
     if not message:
@@ -220,9 +183,6 @@ async def handle_violation(update, context, reason):
     except Exception:
         pass
 
-# ============================================================
-# YANGI A'ZONI TEKSHIRISH
-# ============================================================
 async def check_new_member(update, context):
     chat_member = update.chat_member
     if not chat_member:
@@ -274,9 +234,6 @@ async def check_new_member(update, context):
     except Exception:
         pass
 
-# ============================================================
-# MAIN
-# ============================================================
 def main():
     print("====================================")
     print("🤖 ModerBot ishga tushmoqda...")
