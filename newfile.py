@@ -14,10 +14,16 @@ from telegram.ext import (
 )
 from telegram.helpers import escape_markdown
 
+# ============================================================
+# CONFIG
+# ============================================================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable topilmadi!")
 
+# ============================================================
+# ADMINLAR (Telegram ID)
+# ============================================================
 ADMIN_IDS = {1072547777}
 
 # ============================================================
@@ -35,44 +41,41 @@ SPAM_WORDS = [
     "xxx", "adult", "18+",
 ]
 
-# Soxta barolarni (false positive) oldini olish uchun
-# "word boundary" bilan ishlaydigan regex'lar
-def _build_word_regexes(words: list[str]) -> dict[str, "re.Pattern"]:
-    pattern_map = {}
-    for w in words:
-        w_lower = w.lower()
-        if re.fullmatch(r"[a-z0-9 ]+", w_lower):
-            pattern_map[w_lower] = re.compile(
-                r"(?<![a-z0-9])" + re.escape(w_lower) + r"(?![a-z0-9])"
-            )
+# ============================================================
+# SPAM TEKSHIRISH
+# ============================================================
+def contains_spam(text):
+    """Soxta baroni oldini olish uchun so'z chegarasi bilan tekshiradi."""
+    text_lower = text.lower()
+    found = []
+    for word in SPAM_WORDS:
+        w = word.lower()
+        # faqat oddiy harflar/mos bo'lsa → so'z chegarasi bilan qidiramiz
+        if re.fullmatch(r"[a-z0-9 ]+", w):
+            pattern = r"(?<![a-z0-9])" + re.escape(w) + r"(?![a-z0-9])"
+            if re.search(pattern, text_lower):
+                found.append(word)
         else:
-            pattern_map[w_lower] = re.compile(re.escape(w_lower))
-    return pattern_map
-
-SPAM_REGEXES = _build_word_regexes(SPAM_WORDS)
+            # emoji, "http://", "18+", "earn$" kabilarni to'g'ridan-to'g'ri
+            if w in text_lower:
+                found.append(word)
+    return found
 
 # ============================================================
 # BAN QOIDALARI
 # ============================================================
-def should_ban(user) -> tuple[bool, str]:
+def should_ban(user):
     """Ism/username'da 'admin' bor bo'lsa yoki user_ bilan boshlansa — ban."""
     username = (user.username or "").lower().strip()
-    full_name = f"{user.first_name or ''} {user.last_name or ''}".lower().strip()
+    full_name = "{} {}".format(user.first_name or "", user.last_name or "").lower().strip()
 
     if username.startswith("user_"):
         return True, "username user_ bilan boshlanadi"
     if "admin" in username:
-        return True, f"username'da 'admin' bor: @{username}"
+        return True, "username'da 'admin' bor: @" + username
     if "admin" in full_name:
-        return True, f"ismda 'admin' bor: {full_name or 'noma'lum'}"
+        return True, "ismda 'admin' bor: " + (full_name or "belgilanmagan")
     return False, ""
-
-# ============================================================
-# SPAM TEKSHIRISH
-# ============================================================
-def contains_spam(text: str) -> list[str]:
-    text_lower = text.lower()
-    return [word for word, rgx in SPAM_REGEXES.items() if rgx.search(text_lower)]
 
 # ============================================================
 # RENDER HEALTH SERVER
@@ -100,17 +103,22 @@ def start_health_server():
 # ============================================================
 # ADMINLARGA BILDIRIM
 # ============================================================
-async def notify_admins(context: ContextTypes.DEFAULT_TYPE, chat_title: str, user, reason: str):
+async def notify_admins(context, chat_title, user, reason):
     """Barcha adminlarga ban haqida xabar yuboradi."""
     if not user:
         return
-    username_text = f"@{user.username}" if user.username else "username yo'q"
+    username_text = "@{}".format(user.username) if user.username else "username yo'q"
     text = (
-        f"🚫 *{escape_markdown(chat_title or 'noma'lum guruh')}* dan "
-        f"{escape_markdown(username_text)} banlandi\n"
-        f"📌 Sabab: {escape_markdown(reason)}\n"
-        f"👤 Ism: {escape_markdown(user.first_name or 'noma'lum')}\n"
-        f"🆔 ID: {user.id}"
+        "🚫 *{}* dan {} banlandi\n"
+        "📌 Sabab: {}\n"
+        "👤 Ism: {}\n"
+        "🆔 ID: {}".format(
+            escape_markdown(chat_title or "noma'lum guruh"),
+            escape_markdown(username_text),
+            escape_markdown(reason),
+            escape_markdown(user.first_name or "belgilanmagan"),
+            user.id
+        )
     )
     for admin_id in ADMIN_IDS:
         try:
@@ -126,7 +134,7 @@ async def notify_admins(context: ContextTypes.DEFAULT_TYPE, chat_title: str, use
 # ============================================================
 # /start
 # ============================================================
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start_command(update, context):
     if not update.message:
         return
     await update.message.reply_text(
@@ -139,7 +147,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 # SPAM XABARLARNI TEKSHIRISH
 # ============================================================
-async def check_spam_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_spam_message(update, context):
     message = update.message
     if not message:
         return
@@ -155,14 +163,14 @@ async def check_spam_message(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     spam_found = contains_spam(text)
     if spam_found:
-        reason = f"spam so'zlar: {', '.join(spam_found)}"
+        reason = "spam so'zlar: " + ", ".join(spam_found)
         await handle_violation(update, context, reason)
 
-async def handle_violation(update: Update, context: ContextTypes.DEFAULT_TYPE, reason: str):
+async def handle_violation(update, context, reason):
     user = update.message.from_user
     chat = update.message.chat
     message_id = update.message.message_id
-    username_text = f"@{user.username}" if user.username else "username yo'q"
+    username_text = "@{}".format(user.username) if user.username else "username yo'q"
 
     if user.id in ADMIN_IDS:
         print(f"⚠️ Admin {user.first_name} tekshirildi: {reason}")
@@ -199,15 +207,15 @@ async def handle_violation(update: Update, context: ContextTypes.DEFAULT_TYPE, r
     # 3. ADMINLARGA BILDIRIM
     await notify_admins(context, chat.title, user, reason)
 
-    # 4. Banlangan foydalanuvchi ga shaxsiy xabar
+    # 4. Banlangan foydalanuvchiga shaxsiy xabar
     try:
         await context.bot.send_message(
             chat_id=user.id,
             text=(
-                f"⛔ Siz {chat.title} guruhidan ban qilindingiz.\n"
-                f"📌 Sabab: {reason}\n"
-                f"❓ Nega ban qilganini bilib olish uchun admin bilan murojaat qiling."
-            )
+                "⛔ Siz {} guruhidan ban qilindingiz.\n"
+                "📌 Sabab: {}\n"
+                "❓ Muammo bo'lsa admin bilan bog'laning."
+            ).format(escape_markdown(chat.title), escape_markdown(reason))
         )
     except Exception:
         pass
@@ -215,7 +223,7 @@ async def handle_violation(update: Update, context: ContextTypes.DEFAULT_TYPE, r
 # ============================================================
 # YANGI A'ZONI TEKSHIRISH
 # ============================================================
-async def check_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def check_new_member(update, context):
     chat_member = update.chat_member
     if not chat_member:
         return
@@ -231,7 +239,7 @@ async def check_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not ban:
         return
 
-    username_text = f"@{user.username}" if user.username else "username yo'q"
+    username_text = "@{}".format(user.username) if user.username else "username yo'q"
 
     try:
         await context.bot.ban_chat_member(
@@ -258,10 +266,10 @@ async def check_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=user.id,
             text=(
-                f"⛔ Siz {chat_member.chat.title} guruhidan ban qilindingiz.\n"
-                f"📌 Sabab: {reason}\n"
-                f"❓ Nega ban qilganini bilib olish uchun admin bilan murojaat qiling."
-            )
+                "⛔ Siz {} guruhidan ban qilindingiz.\n"
+                "📌 Sabab: {}\n"
+                "❓ Muammo bo'lsa admin bilan bog'laning."
+            ).format(escape_markdown(chat_member.chat.title), escape_markdown(reason))
         )
     except Exception:
         pass
